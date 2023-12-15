@@ -1,0 +1,72 @@
+<?php
+
+namespace App\Http\Controllers\Staff;
+
+use App\Http\Controllers\Controller;
+use App\Models\Laundry;
+use Exception;
+use Illuminate\Http\Request;
+
+class LaundryController extends Controller
+{
+    /**
+     * Display a listing of the resource.
+     */
+    public function index()
+    {
+        $laundries = Laundry::whereHas('user', function ($query) {
+            $query->whereHas('roles', function ($roleQuery) {
+                $roleQuery->where('id', '!=', 2);
+            })->where('id', '!=', auth()->user()->id);
+        })
+        ->latest() // Orders by created_at in descending order
+        ->paginate(10);
+        return view('staff.laundries.laundries', compact('laundries'));
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     */
+    public function edit(Laundry $laundry)
+    {
+        return view('staff.laundries.forms.edit', compact('laundry'));
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, Laundry $laundry)
+    {
+        $request->validate([
+            'laundry_name' => ['required', 'string'],
+            'weight_laundry' => ['required', 'decimal:1'],
+            'base_price' => ['required', 'decimal:2'],
+            'total_laundry_price' => ['required', 'decimal:2'],
+        ]);
+        try {
+            $laundry->update([
+                'laundry_name' => $request->laundry_name,
+                'weight_laundry' => $request->weight_laundry,
+                'base_price_per_weight' => $request->base_price,
+                'total_laundry_price' => $request->total_laundry_price,
+            ]);
+
+            return back()->with('success', 'You have placed your laundry successfully');
+        } catch (Exception $e) {
+            abort(500);
+        }
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(Laundry $laundry)
+    {
+        try {
+            $laundry->deleteOrFail();
+            return back()->with('success', 'Laundry Deleted Successfully');
+        } catch (Exception $e) {
+            abort(500);
+        }
+    }
+}
